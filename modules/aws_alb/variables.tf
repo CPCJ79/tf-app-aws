@@ -94,7 +94,7 @@ variable "access_logs_prefix" {
 
 variable "access_logs_enabled" {
   type        = bool
-  default     = true
+  default     = false
   description = "A boolean flag to enable/disable access_logs"
 }
 
@@ -208,7 +208,7 @@ variable "health_check_matcher" {
 
 variable "alb_access_logs_s3_bucket_force_destroy" {
   type        = bool
-  default     = false
+  default     = true
   description = "A boolean that indicates all objects should be deleted from the ALB access logs S3 bucket so that the bucket can be destroyed without error"
 }
 

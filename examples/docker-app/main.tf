@@ -9,28 +9,6 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_availability_zones" "selected" {
-  state = "available"
-  filter {
-    name   = "region-name"
-    values = ["us-east-1"]
-  }
-
-}
-
-data "aws_subnet" "private" {
-  availability_zone = data.aws_availability_zones.selected.zone_ids
-  filter {
-    name   = "tag:Subnet"
-    values = ["Private"]
-  }
-}
-
-data "aws_route53_zone" "selected" {
-  name         = "caseyreed.com"
-  private_zone = true
-}
-
 data "aws_ami" "caseyreed_cis_ubuntu" {
   most_recent      = true
   name_regex       = "^caseyreed-cis-ubuntu-2004-.*"
@@ -48,14 +26,14 @@ locals {
     owner_team_coms = "security@caseyreed.com"
     confidentiality = "Confidential"
     environment = "prd"
-    service_name = "nginx-proxy"
-    code_repo_link ="github.com/CPCJ79/terraform-app"
+    service_name = "docker-app"
+    code_repo_link ="github.com/CPCJ79/tf-app-aws"
     operational_schedule = "officehours, noweekends"
     managed_by = "casey.reed@caseyreed.com"
   }
   namespace = "ie"
-  stage = "prod"
-  name  = "nginx-proxy"
+  stage = "dev"
+  name  = "docker-app"
   attributes = ["internal"]
   delimiter = "-"
 }
@@ -88,7 +66,7 @@ module "sg0" {
       from_port   = 8443
       to_port     = 8443
       protocol    = "tcp"
-      cidr_blocks = [data.aws_subnet.private.cidr_block]
+      cidr_blocks = ["172.31.16.0/20"]
       self        = null
       description = "Allow HTTPS"
     }
@@ -104,9 +82,10 @@ module "alb" {
 
   context = module.lables.context
 
+  access_logs_enabled                     = false
   vpc_id                                  = data.aws_vpc.default.id
   security_group_ids                      = [module.sg0.id]
-  subnet_ids                              = data.aws_subnet.private.id
+  subnet_ids                              = ["subnet-052912d405f0d8b8a"]
   target_group_protocol                   = "HTTPS"
   target_group_target_type                = "instance"
 
@@ -120,7 +99,7 @@ module "aws_asg" {
   image_id                    = data.aws_ami.caseyreed_cis_ubuntu.id
   instance_type               = "t3.medium"
   security_group_ids          = [module.sg0.id]
-  subnet_ids                  = [data.aws_subnet.private.id]
+  subnet_ids                  = ["subnet-052912d405f0d8b8a"]
   health_check_type           = "ELB"
   min_size                    = 1
   max_size                    = 1

@@ -1,3 +1,7 @@
+data "aws_region" "current" {}
+
+data "aws_caller_identity" "current" {}
+
 resource "aws_iam_instance_profile" "default" {
   count = module.this.enabled && local.create_instance_profile ? 1 : 0
   name  = module.this.id

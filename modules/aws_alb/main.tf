@@ -38,27 +38,26 @@ resource "aws_security_group_rule" "https_ingress" {
   security_group_id = one(aws_security_group.default[*].id)
 }
 
-module "access_logs" {
-  source  = "../aws_s3_alb"
+#module "access_logs" {
+#  source  = "../aws_s3_alb"
+#  enabled = module.this.enabled && var.access_logs_enabled && var.access_logs_s3_bucket_id == null
 
-  enabled = module.this.enabled && var.access_logs_enabled && var.access_logs_s3_bucket_id == null
+#  attributes = compact(concat(module.this.attributes, ["alb", "access", "logs"]))
 
-  attributes = compact(concat(module.this.attributes, ["alb", "access", "logs"]))
+#  allow_ssl_requests_only       = var.allow_ssl_requests_only
+#  force_destroy                 = var.alb_access_logs_s3_bucket_force_destroy
+#  lifecycle_configuration_rules = var.lifecycle_configuration_rules
 
-  allow_ssl_requests_only       = var.allow_ssl_requests_only
-  force_destroy                 = var.alb_access_logs_s3_bucket_force_destroy
-  lifecycle_configuration_rules = var.lifecycle_configuration_rules
+#  lifecycle_rule_enabled             = var.lifecycle_rule_enabled
+#  enable_glacier_transition          = var.enable_glacier_transition
+#  expiration_days                    = var.expiration_days
+#  glacier_transition_days            = var.glacier_transition_days
+#  noncurrent_version_expiration_days = var.noncurrent_version_expiration_days
+#  noncurrent_version_transition_days = var.noncurrent_version_transition_days
+#  standard_transition_days           = var.standard_transition_days
 
-  lifecycle_rule_enabled             = var.lifecycle_rule_enabled
-  enable_glacier_transition          = var.enable_glacier_transition
-  expiration_days                    = var.expiration_days
-  glacier_transition_days            = var.glacier_transition_days
-  noncurrent_version_expiration_days = var.noncurrent_version_expiration_days
-  noncurrent_version_transition_days = var.noncurrent_version_transition_days
-  standard_transition_days           = var.standard_transition_days
-
-  context = module.this.context
-}
+#  context = module.this.context
+#}
 
 module "default_load_balancer_label" {
   source          = "../null-label"
@@ -89,11 +88,11 @@ resource "aws_lb" "default" {
   preserve_host_header             = var.preserve_host_header
   xff_header_processing_mode       = var.xff_header_processing_mode
 
-  access_logs {
-    bucket  = try(element(compact([var.access_logs_s3_bucket_id, module.access_logs.bucket_id]), 0), "")
-    prefix  = var.access_logs_prefix
-    enabled = var.access_logs_enabled
-  }
+  #access_logs {
+    #bucket  = try(element(compact([var.access_logs_s3_bucket_id, module.access_logs.bucket_id]), 0), "")
+    #prefix  = var.access_logs_prefix
+    #enabled = var.access_logs_enabled
+  #}
 }
 
 module "default_target_group_label" {
