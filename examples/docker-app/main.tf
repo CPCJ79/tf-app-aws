@@ -9,10 +9,10 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_ami" "caseyreed_cis_ubuntu" {
+data "aws_ami" "base_ubuntu" {
   most_recent      = true
-  name_regex       = "^caseyreed-cis-ubuntu-2004-.*"
-  owners           = ["1234567890"]
+  name_regex       = "^ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-.*"
+  owners           = ["099720109477"]
 }
 
 ### Local Variables ###
@@ -28,7 +28,6 @@ locals {
     environment = "prd"
     service_name = "docker-app"
     code_repo_link ="github.com/CPCJ79/tf-app-aws"
-    operational_schedule = "officehours, noweekends"
     managed_by = "casey.reed@caseyreed.com"
   }
   namespace = "ie"
@@ -54,7 +53,6 @@ module "lables" {
 
 module "sg0" {
   source = "../../modules/aws_sg"
-  attributes = [module.lables.attributes]
 
   # Allow unlimited egress
   allow_all_egress = true
@@ -85,7 +83,7 @@ module "alb" {
   access_logs_enabled                     = false
   vpc_id                                  = data.aws_vpc.default.id
   security_group_ids                      = [module.sg0.id]
-  subnet_ids                              = ["subnet-052912d405f0d8b8a"]
+  subnet_ids                              = ["subnet-052912d405f0d8b8a", "subnet-0625443cf5c784183"]
   target_group_protocol                   = "HTTPS"
   target_group_target_type                = "instance"
 
@@ -96,16 +94,16 @@ module "aws_asg" {
 
   context = module.lables.context
 
-  image_id                    = data.aws_ami.caseyreed_cis_ubuntu.id
+  image_id                    = data.aws_ami.base_ubuntu.id
   instance_type               = "t3.medium"
   security_group_ids          = [module.sg0.id]
-  subnet_ids                  = ["subnet-052912d405f0d8b8a"]
+  subnet_ids                  = ["subnet-052912d405f0d8b8a", "subnet-0625443cf5c784183"]
   health_check_type           = "ELB"
   min_size                    = 1
   max_size                    = 1
   wait_for_capacity_timeout   = "5m"
   associate_public_ip_address = false
-  target_group_arns           = [module.alb[0].default_target_group_arn]
+  target_group_arns           = [module.alb.default_target_group_arn]
   user_data_base64            = local.userdata
   iam_instance_profile_name = join("-", [local.tags.service_name, "prof"])
 
