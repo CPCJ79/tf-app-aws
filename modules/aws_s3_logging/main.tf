@@ -4,7 +4,7 @@ locals {
 }
 
 module "bucket_name" {
-  source  = "../ null-label"
+  source  = "../null-label"
 
   enabled = local.enabled && try(length(var.bucket_name) == 0, false)
 

@@ -61,8 +61,7 @@ module "access_logs" {
 }
 
 module "default_load_balancer_label" {
-  source          = "../ null-label"
-  version         = "0.25.0"
+  source          = "../null-label"
   id_length_limit = var.load_balancer_name_max_length
   context         = module.this.context
 }
@@ -98,8 +97,7 @@ resource "aws_lb" "default" {
 }
 
 module "default_target_group_label" {
-  source          = "../ null-label"
-  version         = "0.25.0"
+  source          = "../null-label"
   attributes      = concat(module.this.attributes, ["default"])
   id_length_limit = var.target_group_name_max_length
   context         = module.this.context

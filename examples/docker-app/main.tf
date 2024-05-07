@@ -63,7 +63,7 @@ locals {
 ### Resources ###
 ###
 ### Modules ###
-module "docker_app" {
+module "lables" {
   source = "../../modules/null-label"
 
   namespace  = local.namespace
@@ -76,7 +76,7 @@ module "docker_app" {
 
 module "sg0" {
   source = "../../modules/aws_sg"
-  attributes = [module.docker_app.attributes]
+  attributes = [module.lables.attributes]
 
   # Allow unlimited egress
   allow_all_egress = true
@@ -96,13 +96,13 @@ module "sg0" {
 
   vpc_id  = data.aws_vpc.default.id
 
-  context = module.docker_app.context
+  context = module.lables.context
 }
 
 module "alb" {
   source = "../../modules/aws_alb"
 
-  context = module.docker_app.context
+  context = module.lables.context
 
   vpc_id                                  = data.aws_vpc.default.id
   security_group_ids                      = [module.sg0.id]
@@ -115,7 +115,7 @@ module "alb" {
 module "aws_asg" {
   source = "../../modules/aws_asg"
 
-  context = module.docker_app.context
+  context = module.lables.context
 
   image_id                    = data.aws_ami.caseyreed_cis_ubuntu.id
   instance_type               = "t3.medium"
