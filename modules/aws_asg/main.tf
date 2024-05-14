@@ -88,7 +88,7 @@ resource "aws_launch_template" "default" {
   user_data = var.user_data_base64
 
   dynamic "iam_instance_profile" {
-    for_each = module.this != "" ? [var.iam_instance_profile_name] : []
+    for_each = var.iam_instance_profile_name != "" ? [var.iam_instance_profile_name] : []
     content {
       name = iam_instance_profile.value
     }
@@ -133,20 +133,18 @@ resource "aws_launch_template" "default" {
 }
 
 locals {
-  create_instance_profile = module.this.enabled && try(length(var.instance_profile), 0) == 0
-  instance_profile        = local.create_instance_profile ? join("", aws_iam_instance_profile.default.*.name) : var.instance_profile
   launch_template_block = {
     id      = one(aws_launch_template.default[*].id)
     version = var.launch_template_version != "" ? var.launch_template_version : one(aws_launch_template.default[*].latest_version)
   }
   launch_template = (
-  var.mixed_instances_policy == null ? local.launch_template_block
+    var.mixed_instances_policy == null ? local.launch_template_block
   : null)
   mixed_instances_policy = (
-  var.mixed_instances_policy == null ? null : {
-    instances_distribution = var.mixed_instances_policy.instances_distribution
-    launch_template        = local.launch_template_block
-    override               = var.mixed_instances_policy.override
+    var.mixed_instances_policy == null ? null : {
+      instances_distribution = var.mixed_instances_policy.instances_distribution
+      launch_template        = local.launch_template_block
+      override               = var.mixed_instances_policy.override
   })
   availability_zones = [for subnet in data.aws_subnet.this : subnet.availability_zone]
   tags = {
@@ -218,21 +216,21 @@ resource "aws_autoscaling_group" "default" {
     content {
       dynamic "instances_distribution" {
         for_each = (
-        mixed_instances_policy.value.instances_distribution != null ?
+          mixed_instances_policy.value.instances_distribution != null ?
         [mixed_instances_policy.value.instances_distribution] : [])
         content {
           on_demand_allocation_strategy = lookup(
-            instances_distribution.value, "on_demand_allocation_strategy", null)
+          instances_distribution.value, "on_demand_allocation_strategy", null)
           on_demand_base_capacity = lookup(
-            instances_distribution.value, "on_demand_base_capacity", null)
+          instances_distribution.value, "on_demand_base_capacity", null)
           on_demand_percentage_above_base_capacity = lookup(
-            instances_distribution.value, "on_demand_percentage_above_base_capacity", null)
+          instances_distribution.value, "on_demand_percentage_above_base_capacity", null)
           spot_allocation_strategy = lookup(
-            instances_distribution.value, "spot_allocation_strategy", null)
+          instances_distribution.value, "spot_allocation_strategy", null)
           spot_instance_pools = lookup(
-            instances_distribution.value, "spot_instance_pools", null)
+          instances_distribution.value, "spot_instance_pools", null)
           spot_max_price = lookup(
-            instances_distribution.value, "spot_max_price", null)
+          instances_distribution.value, "spot_max_price", null)
         }
       }
       launch_template {

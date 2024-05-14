@@ -1,96 +1,70 @@
-variable "use_fullname" {
+variable "force_destroy" {
   type        = bool
-  default     = true
-  description = <<-EOT
-  If set to 'true' then the full ID for the IAM role name (e.g. `[var.namespace]-[var.environment]-[var.stage]`) will be used.
-
-  Otherwise, `var.name` will be used for the IAM role name.
-  EOT
-}
-
-variable "principals" {
-  type        = map(list(string))
-  description = "Map of service name as key and a list of ARNs to allow assuming the role as value (e.g. map(`AWS`, list(`arn:aws:iam:::role/admin`)))"
-  default     = {}
-}
-
-variable "policy_documents" {
-  type        = list(string)
-  description = "List of JSON IAM policy documents"
-  default     = []
-}
-
-variable "policy_document_count" {
-  type        = number
-  description = "Number of policy documents (length of policy_documents list)"
-  default     = 1
-}
-
-variable "managed_policy_arns" {
-  type        = set(string)
-  description = "List of managed policies to attach to created role"
-  default     = []
-}
-
-variable "max_session_duration" {
-  type        = number
-  default     = 3600
-  description = "The maximum session duration (in seconds) for the role. Can have a value from 1 hour to 12 hours"
-}
-
-variable "permissions_boundary" {
-  type        = string
-  default     = ""
-  description = "ARN of the policy that is used to set the permissions boundary for the role"
-}
-
-variable "role_description" {
-  type        = string
-  description = "The description of the IAM role that is visible in the IAM role manager"
-}
-
-variable "policy_name" {
-  type        = string
-  description = "The name of the IAM policy that is visible in the IAM policy manager"
-  default     = null
-}
-
-variable "policy_description" {
-  type        = string
-  default     = ""
-  description = "The description of the IAM policy that is visible in the IAM policy manager"
-}
-
-variable "assume_role_actions" {
-  type        = list(string)
-  default     = ["sts:AssumeRole", "sts:TagSession"]
-  description = "The IAM action to be granted by the AssumeRole policy"
-}
-
-variable "assume_role_conditions" {
-  type = list(object({
-    test     = string
-    variable = string
-    values   = list(string)
-  }))
-  description = "List of conditions for the assume role policy"
-  default     = []
-}
-
-variable "instance_profile_enabled" {
-  type        = bool
+  description = "Destroy the user even if it has non-Terraform-managed IAM access keys, login profile or MFA devices"
   default     = false
-  description = "Create EC2 Instance Profile for the role"
 }
 
 variable "path" {
   type        = string
-  description = "Path to the role and policy. See [IAM Identifiers](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html) for more information."
+  description = "Path in which to create the user"
   default     = "/"
 }
 
-variable "tags_enabled" {
+variable "inline_policies" {
+  type        = list(string)
+  description = "Inline policies to attach to our created user"
+  default     = []
+}
+
+variable "inline_policies_map" {
+  type        = map(string)
+  description = "Inline policies to attach (descriptive key => policy)"
+  default     = {}
+}
+
+variable "policy_arns" {
+  type        = list(string)
+  description = "Policy ARNs to attach to our created user"
+  default     = []
+}
+
+variable "policy_arns_map" {
+  type        = map(string)
+  description = "Policy ARNs to attach (descriptive key => arn)"
+  default     = {}
+}
+
+variable "permissions_boundary" {
   type        = string
-  description = "Enable/disable tags on IAM roles and policies"
+  description = "Permissions Boundary ARN to attach to our created user"
+  default     = null
+}
+
+variable "create_iam_access_key" {
+  type        = bool
+  description = "Whether or not to create IAM access keys"
   default     = true
+}
+
+variable "ssm_enabled" {
+  type        = bool
+  description = <<-EOT
+    Set `true` to store secrets in SSM Parameter Store, `
+    false` to store secrets in Terraform state as outputs.
+    Since Terraform state would contain the secrets in plaintext,
+    use of SSM Parameter Store is recommended.
+    EOT
+  default     = true
+}
+
+variable "ssm_ses_smtp_password_enabled" {
+  type        = bool
+  description = "Whether or not to create an SES SMTP password"
+  default     = false
+}
+
+variable "ssm_base_path" {
+  type        = string
+  description = "The base path for SSM parameters where secrets are stored"
+  default     = "/system_user/"
 }

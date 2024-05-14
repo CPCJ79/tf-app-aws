@@ -13,13 +13,6 @@ variable "instance_initiated_shutdown_behavior" {
 variable "instance_type" {
   type        = string
   description = "Instance type to launch"
-  default     = "t3.medium"
-}
-
-variable "instance_profile" {
-  type        = string
-  description = "A pre-defined profile to attach to the instance (default is to build our own)"
-  default     = ""
 }
 
 variable "iam_instance_profile_name" {
@@ -101,21 +94,7 @@ variable "block_device_mappings" {
     })
   }))
 
-  default = [
-    {
-      device_name  = "/dev/sda1"
-      no_device    = "false"
-      virtual_name = "root"
-      ebs = {
-        encrypted             = true
-        volume_size           = 40
-        delete_on_termination = true
-        iops                  = null
-        kms_key_id            = null
-        snapshot_id           = null
-        volume_type           = "standard"
-      }
-    }]
+  default = []
 }
 
 variable "instance_market_options" {

@@ -3,19 +3,19 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
 set -e
 
-#export AWS_DEFAULT_REGION=#REGION
-#export APP_NAME=#APP_NAME
-#export USER=#SYS_USER
+export AWS_DEFAULT_REGION=us-west-2
+export APP_NAME=docker-app
+export USER=ubuntu
 
 #BASE SYSTEM SUPPORT
 #Based on Ubuntu
-#sudo apt-get update
-#sudo apt-get install -y nfs-common ca-certificates zip
+sudo apt-get update
+sudo apt-get install -y nfs-common ca-certificates zip
 
 #AWS THINGS
-#curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-#unzip awscliv2.zip
-#sudo ./aws/install
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
 
 #SECRETS
 #Example of how to pull and decrypt secrets from ssm param store and assign to a variable

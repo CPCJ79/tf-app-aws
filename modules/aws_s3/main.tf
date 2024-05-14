@@ -335,7 +335,7 @@ resource "aws_s3_bucket_object_lock_configuration" "default" {
 }
 
 module "s3_user" {
-  source  = "../aws_iam"
+  source  = "../aws_iam_s3_user"
 
   enabled      = local.enabled && var.user_enabled
   s3_actions   = var.allowed_bucket_actions

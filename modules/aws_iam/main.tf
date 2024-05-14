@@ -1,76 +1,92 @@
-data "aws_iam_policy_document" "assume_role" {
-  count = module.this.enabled ? length(keys(var.principals)) : 0
+locals {
+  enabled = module.this.enabled
 
-  statement {
-    effect  = "Allow"
-    actions = var.assume_role_actions
+  username              = join("", aws_iam_user.default.*.name)
+  create_iam_access_key = local.enabled && var.create_iam_access_key
+  ssm_enabled           = var.ssm_enabled && local.create_iam_access_key
 
-    principals {
-      type        = element(keys(var.principals), count.index)
-      identifiers = var.principals[element(keys(var.principals), count.index)]
-    }
-
-    dynamic "condition" {
-      for_each = var.assume_role_conditions
-      content {
-        test     = condition.value.test
-        variable = condition.value.variable
-        values   = condition.value.values
-      }
-    }
-  }
+  key_id_ssm_path        = "${trimsuffix(var.ssm_base_path, "/")}/${local.username}/access_key_id"
+  secret_ssm_path        = "${trimsuffix(var.ssm_base_path, "/")}/${local.username}/secret_access_key"
+  smtp_password_ssm_path = "${trimsuffix(var.ssm_base_path, "/")}/${local.username}/ses_smtp_password_v4"
 }
 
-data "aws_iam_policy_document" "assume_role_aggregated" {
-  count                     = module.this.enabled ? 1 : 0
-  override_policy_documents = data.aws_iam_policy_document.assume_role[*].json
-}
-
-module "role_name" {
-  source          = "../null-label"
-  id_length_limit = 64
-  context         = module.this.context
-}
-
-resource "aws_iam_role" "default" {
-  count                = module.this.enabled ? 1 : 0
-  name                 = var.use_fullname ? module.role_name.id : module.this.name
-  assume_role_policy   = join("", data.aws_iam_policy_document.assume_role_aggregated[*].json)
-  description          = var.role_description
-  max_session_duration = var.max_session_duration
-  permissions_boundary = var.permissions_boundary
+# Defines a user that should be able to write to you test bucket
+resource "aws_iam_user" "default" {
+  count                = local.enabled ? 1 : 0
+  name                 = module.this.id
   path                 = var.path
-  tags                 = var.tags_enabled ? module.this.tags : null
+  force_destroy        = var.force_destroy
+  tags                 = module.this.tags
+  permissions_boundary = var.permissions_boundary
 }
 
-data "aws_iam_policy_document" "default" {
-  count                     = module.this.enabled && var.policy_document_count > 0 ? 1 : 0
-  override_policy_documents = var.policy_documents
+# Generate API credentials
+resource "aws_iam_access_key" "default" {
+  count = local.create_iam_access_key ? 1 : 0
+  user  = local.username
 }
 
-resource "aws_iam_policy" "default" {
-  count       = module.this.enabled && var.policy_document_count > 0 ? 1 : 0
-  name        = var.policy_name != "" && var.policy_name != null ? var.policy_name : module.this.id
-  description = var.policy_description
-  policy      = join("", data.aws_iam_policy_document.default.*.json)
-  path        = var.path
-  tags        = var.tags_enabled ? module.this.tags : null
+# policies -- inline and otherwise
+locals {
+  inline_policies_map = merge(
+    var.inline_policies_map,
+    { for i in var.inline_policies : md5(i) => i }
+  )
+  policy_arns_map = merge(
+    var.policy_arns_map,
+    { for i in var.policy_arns : i => i }
+  )
 }
 
-resource "aws_iam_role_policy_attachment" "default" {
-  count      = module.this.enabled && var.policy_document_count > 0 ? 1 : 0
-  role       = join("", aws_iam_role.default.*.name)
-  policy_arn = join("", aws_iam_policy.default.*.arn)
+resource "aws_iam_user_policy" "inline_policies" {
+  #bridgecrew:skip=BC_AWS_IAM_16:Skipping `Ensure IAM policies are attached only to groups or roles` check because this module intentionally attaches IAM policy directly to a user.
+  for_each = module.this.enabled ? local.inline_policies_map : {}
+  lifecycle {
+    create_before_destroy = true
+  }
+  name_prefix = module.this.id
+  user        = local.username
+  policy      = each.value
 }
 
-resource "aws_iam_role_policy_attachment" "managed" {
-  for_each   = module.this.enabled ? var.managed_policy_arns : []
-  role       = join("", aws_iam_role.default.*.name)
-  policy_arn = each.key
+resource "aws_iam_user_policy_attachment" "policies" {
+  #bridgecrew:skip=BC_AWS_IAM_16:Skipping `Ensure IAM policies are attached only to groups or roles` check because this module intentionally attaches IAM policy directly to a user.
+  for_each = module.this.enabled ? local.policy_arns_map : {}
+  lifecycle {
+    create_before_destroy = true
+  }
+  user       = local.username
+  policy_arn = each.value
 }
 
-resource "aws_iam_instance_profile" "default" {
-  count = module.this.enabled && var.instance_profile_enabled ? 1 : 0
-  name  = module.this.id
-  role  = join("", aws_iam_role.default.*.name)
+module "store_write" {
+  source  = "../aws_parameter_store"
+
+  count = local.ssm_enabled ? 1 : 0
+
+  parameter_write = concat([
+    {
+      name        = local.key_id_ssm_path
+      value       = aws_iam_access_key.default[0].id
+      type        = "SecureString"
+      overwrite   = true
+      description = "The AWS_ACCESS_KEY_ID for the ${local.username} user."
+    },
+    {
+      name        = local.secret_ssm_path
+      value       = aws_iam_access_key.default[0].secret
+      type        = "SecureString"
+      overwrite   = true
+      description = "The AWS_SECRET_ACCESS_KEY for the ${local.username} user."
+    }], var.ssm_ses_smtp_password_enabled ? [
+    {
+      name        = local.smtp_password_ssm_path
+      value       = aws_iam_access_key.default[0].ses_smtp_password_v4
+      type        = "SecureString"
+      overwrite   = true
+      description = "The AWS_SECRET_ACCESS_KEY converted into an SES SMTP password for the ${local.username} user."
+    }] : []
+  )
+
+  context = module.this.context
 }

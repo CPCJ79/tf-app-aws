@@ -67,9 +67,3 @@ output "autoscaling_policy_scale_up_arn" {
   description = "ARN of the AutoScaling policy scale up"
   value       = one(aws_autoscaling_policy.scale_up[*].arn)
 }
-
-output "role" {
-  value       = join("", aws_iam_role.default.*.name)
-  description = "Name of AWS IAM Role associated with the instance"
-}
-

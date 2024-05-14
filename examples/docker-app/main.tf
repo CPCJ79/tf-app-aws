@@ -51,6 +51,80 @@ module "lables" {
   tags = local.tags
 }
 
+data "aws_iam_policy_document" "instance_iam_policy" {
+  statement {
+    sid = "SSMPolicy"
+
+    actions = [
+      "ssm:DescribeParameters",
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:GetParametersByPath",
+    ]
+
+    resources = [
+      "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/app/${local.tags.service_name}/*",
+    ]
+  }
+
+  statement {
+    sid = "SSMManager"
+
+    actions = [
+      "ssm:DescribeAssociation",
+      "ssm:GetDeployablePatchSnapshotForInstance",
+      "ssm:GetDocument",
+      "ssm:DescribeDocument",
+      "ssm:GetManifest",
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:ListAssociations",
+      "ssm:ListInstanceAssociations",
+      "ssm:PutInventory",
+      "ssm:PutComplianceItems",
+      "ssm:PutConfigurePackageResult",
+      "ssm:UpdateAssociationStatus",
+      "ssm:UpdateInstanceAssociationStatus",
+      "ssm:UpdateInstanceInformation",
+      "ssmmessages:CreateControlChannel",
+      "ssmmessages:CreateDataChannel",
+      "ssmmessages:OpenControlChannel",
+      "ssmmessages:OpenDataChannel",
+      "ec2messages:AcknowledgeMessage",
+      "ec2messages:DeleteMessage",
+      "ec2messages:FailMessage",
+      "ec2messages:GetEndpoint",
+      "ec2messages:GetMessages",
+      "ec2messages:SendReply"
+    ]
+
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_instance_profile" "docker-app" {
+  name = "docker-app-inst-prof"
+  role = module.asg_role.name
+}
+
+module "asg_role" {
+  source = "../../modules/aws_iam_role"
+
+  context = module.lables.context
+  role_description = "tf managed asg role"
+  policy_description = "tf managed policy permitting ssm and ssh"
+  assume_role_actions = [
+    "sts:AssumeRole",
+  ]
+  principals = {
+    "Service" : ["ec2.amazonaws.com"],
+  }
+
+  policy_documents = [
+    data.aws_iam_policy_document.instance_iam_policy.json,
+  ]
+}
+
 module "sg0" {
   source = "../../modules/aws_sg"
 
@@ -61,8 +135,8 @@ module "sg0" {
     {
       key         = "HTTPS"
       type        = "ingress"
-      from_port   = 8443
-      to_port     = 8443
+      from_port   = 8080
+      to_port     = 8080
       protocol    = "tcp"
       cidr_blocks = ["172.31.16.0/20"]
       self        = null
@@ -83,9 +157,16 @@ module "alb" {
   access_logs_enabled                     = false
   vpc_id                                  = data.aws_vpc.default.id
   security_group_ids                      = [module.sg0.id]
-  subnet_ids                              = ["subnet-052912d405f0d8b8a", "subnet-0625443cf5c784183"]
+  subnet_ids                              = ["subnet-0ab600d5ef797038a", "subnet-09c78817d0d8cb4a7"]
   target_group_protocol                   = "HTTPS"
   target_group_target_type                = "instance"
+  http_enabled                            = true
+  http_redirect                           = false
+  https_enabled                           = false
+  #certificate_arn                        = ""
+  http_port                               = 8080
+  target_group_port                       = 8080
+
 
 }
 
@@ -97,7 +178,7 @@ module "aws_asg" {
   image_id                    = data.aws_ami.base_ubuntu.id
   instance_type               = "t3.medium"
   security_group_ids          = [module.sg0.id]
-  subnet_ids                  = ["subnet-052912d405f0d8b8a", "subnet-0625443cf5c784183"]
+  subnet_ids                  = ["subnet-0ab600d5ef797038a", "subnet-09c78817d0d8cb4a7"]
   health_check_type           = "ELB"
   min_size                    = 1
   max_size                    = 1
@@ -105,7 +186,6 @@ module "aws_asg" {
   associate_public_ip_address = false
   target_group_arns           = [module.alb.default_target_group_arn]
   user_data_base64            = local.userdata
-  iam_instance_profile_name = join("-", [local.tags.service_name, "prof"])
-
+  iam_instance_profile_name   = aws_iam_instance_profile.docker-app.name
 
 }
